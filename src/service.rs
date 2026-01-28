@@ -1,6 +1,6 @@
 use crate::errors::PDFError;
 use crate::models::{ErrorResponse, SuccessResponse};
-use crate::extract_xml::{EmbeddedFilesExtractor, PDFA3Validator};
+use crate::extract_xml::{EmbeddedFilesExtractor, extract_xml_from_pdf_bytes};
 
 /// Main business logic for eRechnung processing
 pub struct ERechnungService;
@@ -8,21 +8,13 @@ pub struct ERechnungService;
 impl ERechnungService {
     /// Process a PDF file and extract XML content
     pub fn process_pdf(pdf_bytes: Vec<u8>) -> Result<SuccessResponse, ErrorResponse> {
-        // Validate PDF/A-3 format
-        if let Err(e) = PDFA3Validator::validate(&pdf_bytes) {
+        // Basic PDF validation
+        if pdf_bytes.len() < 5 || &pdf_bytes[0..5] != b"%PDF-" {
             return Err(ErrorResponse {
-                file_status: e.to_string(),
+                file_status: PDFError::InvalidPDF.to_string(),
                 embedded_files: None,
             });
         }
-
-        // Find catalog (validate structure)
-        let _catalog = EmbeddedFilesExtractor::find_catalog(&pdf_bytes).ok_or_else(|| {
-            ErrorResponse {
-                file_status: PDFError::NoCatalog.to_string(),
-                embedded_files: None,
-            }
-        })?;
 
         // Find embedded files
         let embedded_files = EmbeddedFilesExtractor::find_embedded_files(&pdf_bytes);
@@ -43,13 +35,26 @@ impl ERechnungService {
                 embedded_files: Some(embedded_files.join(", ")),
             })?;
 
-        // Extract XML content
-        let xml_content =
-            EmbeddedFilesExtractor::extract_xml_content(&pdf_bytes).ok_or_else(|| {
-                ErrorResponse {
-                    file_status: PDFError::ExtractionFailed.to_string(),
-                    embedded_files: Some(embedded_files.join(", ")),
-                }
+        // Extract XML content using lopdf
+        let xml_contents = extract_xml_from_pdf_bytes(&pdf_bytes).map_err(|_| {
+            ErrorResponse {
+                file_status: PDFError::ExtractionFailed.to_string(),
+                embedded_files: Some(embedded_files.join(", ")),
+            }
+        })?;
+
+        // Find the best XML content (prefer one that looks like an invoice)
+        let xml_content = xml_contents
+            .iter()
+            .find(|content| {
+                content.contains("<rsm:") || 
+                content.contains("<ubl:") || 
+                content.contains("<Invoice")
+            })
+            .or_else(|| xml_contents.first())
+            .ok_or_else(|| ErrorResponse {
+                file_status: PDFError::ExtractionFailed.to_string(),
+                embedded_files: Some(embedded_files.join(", ")),
             })?;
 
         // Determine status based on XML filename
@@ -63,7 +68,7 @@ impl ERechnungService {
         Ok(SuccessResponse {
             file_status: status,
             embedded_files: embedded_files.join(", "),
-            xml_content,
+            xml_content: xml_content.clone(),
             xml_filename: xml_file.clone(),
         })
     }

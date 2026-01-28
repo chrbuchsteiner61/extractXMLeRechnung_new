@@ -1,4 +1,8 @@
 use crate::errors::PDFError;
+use anyhow::Result;
+use lopdf::Document;
+
+use serde_xml_rs::from_str;
 
 /// Low-level PDF parsing utilities
 pub struct PDFParser;
@@ -117,56 +121,47 @@ impl EmbeddedFilesExtractor {
 
         embedded_files
     }
+}
 
-    /// Extract complete embedded XML file from PDF
-    pub fn extract_xml_content(pdf_bytes: &[u8]) -> Option<String> {
-        let pdf_string = String::from_utf8_lossy(pdf_bytes);
-        
-        // Look for the embedded file specification first
-        if let Some(filespec_pos) = pdf_string.find("factur-x.xml") {
-            // Search backwards and forwards from the filename to find the file object
-            let search_start = filespec_pos.saturating_sub(2000);
-            let search_end = (filespec_pos + 2000).min(pdf_string.len());
-            
-            // Ensure we don't have invalid bounds
-            if search_start >= search_end {
-                return None;
-            }
-            
-            let search_section = &pdf_string[search_start..search_end];
-            
-            // Look for uncompressed stream content (try different patterns)
-            if let Some(stream_start) = search_section.find("stream\n") {
-                let abs_stream_start = search_start + stream_start + 7;
-                
-                // Make sure we don't go out of bounds
-                if abs_stream_start >= pdf_string.len() {
-                    return None;
-                }
-                
-                if let Some(stream_end_offset) = pdf_string[abs_stream_start..].find("endstream") {
-                    let abs_stream_end = abs_stream_start + stream_end_offset;
-                    
-                    // Ensure valid bounds
-                    if abs_stream_end <= abs_stream_start || abs_stream_end > pdf_string.len() {
-                        return None;
-                    }
-                    
-                    let content = &pdf_string[abs_stream_start..abs_stream_end];
-                    
-                    // Check if content looks like XML (starts with <?xml or <)
-                    let trimmed = content.trim();
-                    if trimmed.starts_with("<?xml") || 
-                       trimmed.starts_with("<rsm:") || 
-                       trimmed.starts_with("<ubl:") ||
-                       trimmed.starts_with("<Invoice") {
-                        return Some(trimmed.to_string());
-                    }
+/// Extracts XML content from PDF file path using lopdf
+pub fn extract_xml_from_pdf(path: &str) -> Result<Vec<String>> {
+    let doc = Document::load(path)?;
+    extract_xml_from_document(&doc)
+}
+
+/// Extract XML content from PDF bytes using lopdf
+pub fn extract_xml_from_pdf_bytes(pdf_bytes: &[u8]) -> Result<Vec<String>> {
+    use std::io::Cursor;
+    let cursor = Cursor::new(pdf_bytes);
+    let doc = Document::load_from(cursor)?;
+    extract_xml_from_document(&doc)
+}
+
+/// Helper function to extract XML from a loaded PDF document
+fn extract_xml_from_document(doc: &Document) -> Result<Vec<String>> {
+    let mut xml_contents = Vec::new();
+
+    // Iterate through all objects in the PDF
+    for (_, object) in doc.objects.iter() {
+        if let Ok(stream) = object.as_stream() {
+            // Check if it's XML metadata or embedded files
+            if let Ok(decoded) = stream.decompressed_content() {
+                let text = String::from_utf8_lossy(&decoded);
+                if is_xml_content(&text) {
+                    xml_contents.push(text.to_string());
                 }
             }
         }
-        
-        // If we can't find valid XML, return None to indicate extraction failed
-        None
     }
+
+    Ok(xml_contents)
+}
+
+/// Check if the content appears to be XML
+fn is_xml_content(text: &str) -> bool {
+    text.contains("<?xml") 
+        || text.contains("<rdf:RDF") 
+        || text.contains("<rsm:") 
+        || text.contains("<ubl:") 
+        || text.contains("<Invoice")
 }
