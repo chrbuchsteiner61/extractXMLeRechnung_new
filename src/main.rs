@@ -2,7 +2,7 @@
 mod errors;
 mod handlers;
 mod models;
-mod pdf;
+mod extract_xml;
 mod service;
 
 use actix_web::{middleware, web, App, HttpServer};

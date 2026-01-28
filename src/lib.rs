@@ -3,7 +3,7 @@
 pub mod errors;
 pub mod handlers;
 pub mod models;
-pub mod pdf;
+pub mod extract_xml;
 pub mod service;
 
 // Re-export commonly used items

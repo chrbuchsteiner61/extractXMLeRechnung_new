@@ -1,6 +1,6 @@
 use crate::errors::PDFError;
 use crate::models::{ErrorResponse, SuccessResponse};
-use crate::pdf::{EmbeddedFilesExtractor, PDFA3Validator};
+use crate::extract_xml::{EmbeddedFilesExtractor, PDFA3Validator};
 
 /// Main business logic for eRechnung processing
 pub struct ERechnungService;

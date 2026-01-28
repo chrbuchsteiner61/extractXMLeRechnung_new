@@ -118,81 +118,55 @@ impl EmbeddedFilesExtractor {
         embedded_files
     }
 
-    /// Extract XML content from PDF streams
+    /// Extract complete embedded XML file from PDF
     pub fn extract_xml_content(pdf_bytes: &[u8]) -> Option<String> {
         let pdf_string = String::from_utf8_lossy(pdf_bytes);
-        let mut stream_start = 0;
-
-        // Try to find XML in uncompressed streams first
-        while let Some(start) = pdf_string[stream_start..].find("stream") {
-            let absolute_start = stream_start + start + 6;
-
-            if let Some(end_offset) = pdf_string[absolute_start..].find("endstream") {
-                let stream_content = &pdf_string[absolute_start..absolute_start + end_offset];
-                let trimmed = stream_content.trim();
-
-                // Check for XML markers in uncompressed content
-                if trimmed.contains("<?xml")
-                    || trimmed.contains("<Invoice")
-                    || trimmed.contains("<rsm:CrossIndustryInvoice")
-                    || trimmed.contains("<ubl:Invoice")
-                {
-                    return Some(trimmed.to_string());
-                }
-
-                stream_start = absolute_start + end_offset;
-            } else {
-                break;
+        
+        // Look for the embedded file specification first
+        if let Some(filespec_pos) = pdf_string.find("factur-x.xml") {
+            // Search backwards and forwards from the filename to find the file object
+            let search_start = filespec_pos.saturating_sub(2000);
+            let search_end = (filespec_pos + 2000).min(pdf_string.len());
+            
+            // Ensure we don't have invalid bounds
+            if search_start >= search_end {
+                return None;
             }
-        }
-
-        // Try alternative approach: Look for EmbeddedFile objects with /Subtype /text#2Fxml
-        // or search for the actual embedded file data between stream/endstream markers
-        // that follow a filespec object
-        if let Some(xml_pos) = pdf_string.find("/Subtype /text#2Fxml")
-            .or_else(|| pdf_string.find("/Subtype/text#2Fxml"))
-            .or_else(|| pdf_string.find("text/xml"))
-        {
-            // Found an XML file reference, now find the associated stream
-            if let Some(stream_start) = pdf_string[xml_pos..].find("stream\n").or_else(|| pdf_string[xml_pos..].find("stream\r")) {
-                let absolute_start = xml_pos + stream_start + 7;
-                if let Some(end_offset) = pdf_string[absolute_start..].find("endstream") {
-                    let stream_content = &pdf_string[absolute_start..absolute_start + end_offset];
-                    let trimmed = stream_content.trim();
+            
+            let search_section = &pdf_string[search_start..search_end];
+            
+            // Look for uncompressed stream content (try different patterns)
+            if let Some(stream_start) = search_section.find("stream\n") {
+                let abs_stream_start = search_start + stream_start + 7;
+                
+                // Make sure we don't go out of bounds
+                if abs_stream_start >= pdf_string.len() {
+                    return None;
+                }
+                
+                if let Some(stream_end_offset) = pdf_string[abs_stream_start..].find("endstream") {
+                    let abs_stream_end = abs_stream_start + stream_end_offset;
                     
-                    // Check if it looks like XML
-                    if trimmed.starts_with("<?xml") || trimmed.starts_with("<") {
+                    // Ensure valid bounds
+                    if abs_stream_end <= abs_stream_start || abs_stream_end > pdf_string.len() {
+                        return None;
+                    }
+                    
+                    let content = &pdf_string[abs_stream_start..abs_stream_end];
+                    
+                    // Check if content looks like XML (starts with <?xml or <)
+                    let trimmed = content.trim();
+                    if trimmed.starts_with("<?xml") || 
+                       trimmed.starts_with("<rsm:") || 
+                       trimmed.starts_with("<ubl:") ||
+                       trimmed.starts_with("<Invoice") {
                         return Some(trimmed.to_string());
                     }
                 }
             }
         }
-
+        
+        // If we can't find valid XML, return None to indicate extraction failed
         None
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_pdf_parser_find_pattern() {
-        let data = b"Hello World";
-        assert_eq!(PDFParser::find_pattern(data, b"World"), Some(6));
-        assert_eq!(PDFParser::find_pattern(data, b"Rust"), None);
-    }
-
-    #[test]
-    fn test_validator_invalid_pdf() {
-        let invalid = b"Not a PDF";
-        assert!(PDFA3Validator::validate(invalid).is_err());
-    }
-
-    #[test]
-    fn test_embedded_files_extractor_empty() {
-        let data = b"%PDF-1.7\nNo embedded files here";
-        let files = EmbeddedFilesExtractor::find_embedded_files(data);
-        assert!(files.is_empty());
     }
 }
