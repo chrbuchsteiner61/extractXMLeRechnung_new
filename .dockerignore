@@ -1,0 +1,44 @@
+# Docker ignore file to optimize build context
+
+# Git
+.git
+.gitignore
+
+# Documentation
+*.md
+docs/
+examples/
+
+# Target directory (except for multi-stage builds)
+target/debug/
+target/doc/
+target/incremental/
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test files
+tests/
+*.pdf
+*.xml
+
+# Config files not needed in container
+config/
+
+# CI/CD files
+.github/
+
+# Docker files not needed in build
+docker-compose*.yml
+nginx*.conf*
+Dockerfile*
+
+# Temporary files
+*.tmp
+*.log
+*.bak

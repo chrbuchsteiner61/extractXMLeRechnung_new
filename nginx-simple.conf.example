@@ -1,0 +1,31 @@
+# Simple nginx configuration for reverse proxy
+# To use this, uncomment the nginx service in docker-compose.yml
+# and rename this file to nginx-simple.conf
+
+server {
+    listen 80;
+    server_name localhost;
+
+    # Increase client max body size for file uploads
+    client_max_body_size 50M;
+
+    # Proxy to the API
+    location / {
+        proxy_pass http://erechnung-api:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # Timeout settings for file uploads
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
+    # Health check endpoint
+    location /health {
+        proxy_pass http://erechnung-api:8080/health;
+        access_log off;
+    }
+}

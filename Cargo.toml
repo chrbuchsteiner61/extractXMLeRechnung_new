@@ -1,0 +1,31 @@
+[package]
+name = "extract_xml_rechnung"
+version = "0.1.0"
+edition = "2021"
+authors = ["Christian Buchsteiner"]
+description = "REST API for extracting XML from German eRechnung PDF/A-3 files"
+license = "MIT"
+repository = "https://github.com/your-username/extract_xml_rechnung"
+keywords = ["pdf", "xml", "invoice", "erechnung", "factur-x"]
+categories = ["web-programming", "parsing"]
+
+[[bin]]
+name = "extract_xml_rechnung"
+path = "src/main.rs"
+
+[lib]
+name = "extract_xml_rechnung"
+path = "src/lib.rs"
+
+[dependencies]
+actix-web = "4.12"
+actix-multipart = "0.7"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.49", features = ["full"] }
+futures-util = "0.3"
+thiserror = "1.0"
+
+[dev-dependencies]
+actix-web = { version = "4.12", features = ["macros"] }
+bytes = "1.0"

@@ -1,0 +1,1 @@
+# Production configuration\nserver:\n  host: \"0.0.0.0\"\n  port: 8080\n  \nlogging:\n  level: \"warn\"\n  format: \"json\"\n  \napi:\n  max_file_size_mb: 25\n  request_timeout_seconds: 15\n  \nsecurity:\n  enable_cors: false\n  allowed_origins: []\n

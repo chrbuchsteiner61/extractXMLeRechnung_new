@@ -1,0 +1,1 @@
+# Default configuration for development\nserver:\n  host: \"127.0.0.1\"\n  port: 8080\n  \nlogging:\n  level: \"info\"\n  format: \"json\"  # json or text\n  \napi:\n  max_file_size_mb: 50\n  request_timeout_seconds: 30\n  \nsecurity:\n  enable_cors: true\n  allowed_origins:\n    - \"http://localhost:3000\"\n    - \"http://127.0.0.1:3000\"\n
