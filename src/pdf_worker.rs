@@ -2,41 +2,6 @@ use crate::errors::PDFError;
 use anyhow::Result;
 use lopdf::Document;
 
-
-/// Low-level PDF parsing utilities
-pub struct PDFParser;
-
-impl PDFParser {
-    /// Find the position of a pattern in bytes
-    pub fn find_pattern(bytes: &[u8], pattern: &[u8]) -> Option<usize> {
-        bytes.windows(pattern.len()).position(|window| window == pattern)
-    }
-
-    /// Extract a PDF object (dictionary) starting at a given position
-    pub fn extract_object(bytes: &[u8], start_pos: usize) -> Option<String> {
-        let mut depth = 0;
-        let mut in_dict = false;
-        let mut start = 0;
-
-        for i in start_pos..bytes.len().saturating_sub(1) {
-            if bytes[i] == b'<' && bytes[i + 1] == b'<' {
-                if !in_dict {
-                    start = i;
-                }
-                in_dict = true;
-                depth += 1;
-            } else if bytes[i] == b'>' && bytes[i + 1] == b'>' {
-                depth -= 1;
-                if depth == 0 && in_dict {
-                    let end = i + 2;
-                    return String::from_utf8(bytes[start..end].to_vec()).ok();
-                }
-            }
-        }
-        None
-    }
-}
-
 /// Validates PDF/A-3 format
 pub struct PDFA3Validator;
 
@@ -58,21 +23,6 @@ impl PDFA3Validator {
 pub struct EmbeddedFilesExtractor;
 
 impl EmbeddedFilesExtractor {
-    /// Find the PDF catalog object
-    pub fn find_catalog(pdf_bytes: &[u8]) -> Option<String> {
-        let catalog_pattern = b"/Type /Catalog";
-        let catalog_pos = PDFParser::find_pattern(pdf_bytes, catalog_pattern)?;
-
-        let mut obj_start = catalog_pos;
-        while obj_start > 2 {
-            if &pdf_bytes[obj_start..obj_start + 3] == b"obj" {
-                break;
-            }
-            obj_start = obj_start.saturating_sub(1);
-        }
-
-        PDFParser::extract_object(pdf_bytes, obj_start)
-    }
 
     /// Find all embedded file names in the PDF
     pub fn find_embedded_files(pdf_bytes: &[u8]) -> Vec<String> {

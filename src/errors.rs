@@ -6,8 +6,6 @@ pub enum PDFError {
     InvalidPDF,
     #[error("PDF is not in PDF/A-3 format")]
     NotPDFA3,
-    #[error("No embedded files catalog found")]
-    NoCatalog,
     #[error("No embedded XML-file")]
     NoXMLFile,
     #[error("XML file found but could not extract content")]
