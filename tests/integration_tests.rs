@@ -1,7 +1,8 @@
 use actix_web::{http::StatusCode, test, web, App};
 use bytes::Bytes;
 use extract_xml_rechnung::{
-    extract_xml, health_check, ERechnungService, ErrorResponse, PDFError, SuccessResponse,
+    extract_xml, extract_xml_file, health_check, ERechnungService, ErrorResponse, PDFError,
+    SuccessResponse,
 };
 use serde_json::Value;
 
@@ -18,6 +19,7 @@ fn create_test_app() -> App<
     App::new()
         .route("/health", web::get().to(health_check))
         .route("/extract_xml", web::post().to(extract_xml))
+        .route("/extract_xml_file", web::post().to(extract_xml_file))
 }
 
 #[actix_web::test]

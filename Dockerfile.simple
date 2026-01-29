@@ -1,0 +1,23 @@
+# Simple single-stage Docker build for Rust application
+
+FROM rust:1.75
+
+WORKDIR /app
+
+# Copy all source files
+COPY . .
+
+# Build the application
+RUN cargo build --release
+
+# Install required system packages for runtime
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Expose port
+EXPOSE 8080
+
+# Run the application
+CMD ["./target/release/extract_xml_rechnung"]

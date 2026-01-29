@@ -8,16 +8,7 @@ WORKDIR /app
 # Copy dependency files
 COPY Cargo.toml Cargo.lock ./
 
-# Create a dummy main.rs to build dependencies
-RUN mkdir src && echo "fn main() {}" > src/main.rs && echo "" > src/lib.rs
-
-# Build dependencies (this will be cached)
-RUN cargo build --release
-
-# Remove dummy files
-RUN rm src/main.rs src/lib.rs
-
-# Copy source code
+# Copy source code structure
 COPY src ./src
 
 # Build the application
